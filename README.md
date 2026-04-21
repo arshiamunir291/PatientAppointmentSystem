@@ -2,7 +2,7 @@
 
 ** Mapping Choices**
 
-* I used **Fluent API** to define relationships because it gives more control than data annotations.
+* Used **Fluent API** to define relationships because it gives more control than data annotations.
   
 ** Relationships implemented:**
 
