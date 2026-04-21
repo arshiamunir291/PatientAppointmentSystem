@@ -51,5 +51,11 @@ namespace PatientAppointmentSystem.Controllers
             var doctors = await service.GetPhysicianWithNoAppointments();
             return Ok(doctors);
         }
+        [HttpGet("with-appointments")]
+        public async Task<IActionResult> GetPhysicianWithAppointments()
+        {
+            var doctors = await service.GetPhysicianWithAppointments();
+            return Ok(doctors);
+        }
     }
 }

@@ -4,7 +4,7 @@ using PatientAppointmentSystem.Services.Interfaces;
 
 namespace PatientManagementSystem.Controllers
 {
-    [Route("patient/")]
+    [Route("patient")]
     [ApiController]
     public class PatientController(IPatientService service) : ControllerBase
     {
@@ -48,6 +48,12 @@ namespace PatientManagementSystem.Controllers
         public async Task<IActionResult> GetPatientsWithNoAppointments()
         {
             var patients = await service.GetPatientWithNoAppointments();
+            return Ok(patients);
+        }
+        [HttpGet("with-appointments")]
+        public async Task<IActionResult> GetPatientsWithAppointments()
+        {
+            var patients = await service.GetPatientWithAppointments();
             return Ok(patients);
         }
     }

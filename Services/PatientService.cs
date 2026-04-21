@@ -1,14 +1,21 @@
-﻿using PatientAppointmentSystem.Services.Interfaces;
-using PatientAppointmentSystem.Repositories.Interfaces;
+﻿using PatientAppointmentSystem.Entities;
+using PatientAppointmentSystem.Models.AppointmentModels;
 using PatientAppointmentSystem.Models.PatientModels;
-using PatientAppointmentSystem.Entities;
+using PatientAppointmentSystem.Repositories.Interfaces;
+using PatientAppointmentSystem.Services.Interfaces;
+using System.Linq;
+
 namespace PatientAppointmentSystem.Services
 {
-    public class PatientService(IPatientRepository patientRepository) : IPatientService
+    public class PatientService(
+        IPatientRepository patientRepository,
+        IAppointmentRepository appointmentRepository,
+        IPhysicianRepository physicianRepository
+        ) : IPatientService
     {
         public async Task<List<PatientListDTO>> GetPatients()
         {
-            var patients= await patientRepository.GetPatientsAsync();
+            var patients= await patientRepository.GetAllPatientsAsync();
             return patients.Select(p=>new PatientListDTO
             {
                 PatientId=p.PatientId,
@@ -78,17 +85,49 @@ namespace PatientAppointmentSystem.Services
             {
                 return false;
             }
+                var appointments = await appointmentRepository.GetAppointmentsByPatientIdAsync(id);
+
+            if (appointments.Any())
+            {
+                throw new Exception("Cannot delete patient with existing appointments.");
+            }
+
             await patientRepository.DeletePatientAsync(existingPatient);
             return true;
         }
         public async Task<List<PatientListDTO>> GetPatientWithNoAppointments()
         {
-            var patients = await patientRepository.GetPatientsWithNoAppointmentsAsync();    
+            var patients = await patientRepository.GetPatientsWithNoAppointmentsAsync();
             return patients.Select(p => new PatientListDTO
             {
                 PatientId = p.PatientId,
                 FullName = $"{p.FirstName} {p.LastName}"
             }).ToList();
+        }
+        public async Task<List<PatientWithAppoinmentDTO>> GetPatientWithAppointments()
+        {
+            var patients = await patientRepository.GetPatientsWithAppointmentsAsync();
+            var appointments = await appointmentRepository.GetAllAppointmentsAsync();
+            var physicians = await physicianRepository.GetAllPhysicainsAsync();
+            var result=patients.Select(p => new PatientWithAppoinmentDTO
+            {
+                PatientId = p.PatientId,
+                FullName = $"{p.FirstName} {p.LastName}",
+                Appointments = appointments.Where(a => a.PatientId == p.PatientId)
+                .Select(a =>
+                {
+                    var physician = physicians.FirstOrDefault(ph => ph.PhysicianId == a.PhysicianId);
+                    return new AppointmentDTO
+                    {
+                        AppointmentId = a.AppointmentId,
+                        PhysicianName = physician != null ? $"{physician.FirstName} {physician.LastName}" : "Unknown",
+                        AppointmentDate = a.AppointmentDate,
+                        AppointmentTime = a.AppointmentTime,
+                        Status = a.Status
+                    };
+                }).ToList()
+            }).ToList();
+            return result;
         }
     }
 }

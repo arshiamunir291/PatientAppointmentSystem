@@ -7,31 +7,27 @@ namespace PatientManagementSystem.Repositories
     {
          public async Task<List<Physician>> GetAllPhysicainsAsync()
         {
-            return await context.Physicians.Include(p=>p.Department).ToListAsync();
+            return await context.Physicians.AsNoTracking().ToListAsync();
         }
         public async Task<Physician?> GetPhysicianByIdAsync(int id)
         {
             return await context.Physicians
-                .Include(p => p.Department)
+                .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.PhysicianId == id);
         }
         public async Task<Physician> AddPhysicianAsync(Physician physician)
         {
             context.Physicians.Add(physician);
             await context.SaveChangesAsync();
-            return await context.Physicians
-                .Include(p => p.Department)
-                .FirstOrDefaultAsync(p => p.PhysicianId == physician.PhysicianId)
-                ?? throw new InvalidOperationException("Physician could not be found after adding.");
+            return physician;
+
         }
         public async Task<Physician?> UpdatePhysicianAsync(Physician physician)
         {
             context.Physicians.Update(physician);
             await context.SaveChangesAsync();
-            return await context.Physicians
-               .Include(p => p.Department)
-               .FirstOrDefaultAsync(p => p.PhysicianId == physician.PhysicianId);
-               //?? throw new InvalidOperationException("Physician could not be found.");
+            return physician;
+
         }
         public async Task DeletePhysicianAsync(Physician physician)
         {
@@ -40,8 +36,14 @@ namespace PatientManagementSystem.Repositories
         }
         public async Task<List<Physician>> GetPhysicianWithNoAppointmentAsync()
         {
-            return await context.Physicians.Include(p=>p.Department)
+            return await context.Physicians.AsNoTracking()
                 .Where(d => !context.Appointments.Any(a => a.PhysicianId == d.PhysicianId)).AsNoTracking()
+                .ToListAsync();
+        }
+        public async Task<List<Physician>> GetPhysicianWithAppointmentAsync()
+        {
+            return await context.Physicians.AsNoTracking()
+                .Where(d => context.Appointments.Any(a => a.PhysicianId == d.PhysicianId)).AsNoTracking()
                 .ToListAsync();
         }
 

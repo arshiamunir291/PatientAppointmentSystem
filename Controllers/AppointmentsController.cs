@@ -4,7 +4,7 @@ using PatientAppointmentSystem.Services.Interfaces;
 
 namespace PatientSystem.Controllers
 {
-    [Route("appointments/")]
+    [Route("appointments")]
     [ApiController]
     public class AppointmentsController(IAppointmentService appointmentService) : ControllerBase
     {
@@ -20,7 +20,7 @@ namespace PatientSystem.Controllers
             var appointment = await appointmentService.GetAppointmentById(id);
             if (appointment == null)
             {
-                return NotFound(new { message = "Patient with this Id not found" });
+                return NotFound(new { message = "Appointment with this ID not found" });
             }
             return Ok(appointment);
         }
@@ -36,7 +36,7 @@ namespace PatientSystem.Controllers
             var updatedAppointment = await appointmentService.UpdateAppointment(id, appointment);
             if (updatedAppointment == null)
             {
-                return NotFound(new { message = "Patient with this Id not found" });
+                return NotFound(new { message = "Appointment with this ID not found" });
             }
             return Ok(updatedAppointment);
         }

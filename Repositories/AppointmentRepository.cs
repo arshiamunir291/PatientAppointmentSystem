@@ -7,11 +7,11 @@ namespace PatientAppointmentSystem.Repositories
     {
         public async Task<List<Appointment>> GetAllAppointmentsAsync()
         {
-            return await context.Appointments.Include(a=>a.Patient).Include(a=>a.Physician).ToListAsync();
+            return await context.Appointments.AsNoTracking().ToListAsync();
         }
         public async Task<Appointment?> GetAppointmentByIdAsync(int id)
         {
-            return await context.Appointments.Include(a=>a.Patient).Include(a=>a.Physician).FirstOrDefaultAsync(a=>a.AppointmentId==id);
+            return await context.Appointments.AsNoTracking().FirstOrDefaultAsync(a=>a.AppointmentId==id);
         }
         public async Task<Appointment> AddAppointmentAsync(Appointment appointment)
         {
@@ -26,11 +26,11 @@ namespace PatientAppointmentSystem.Repositories
         }
         public async Task<List<Appointment>> GetAppointmentsByPatientIdAsync(int patientId)
         {
-            return await context.Appointments.Include(a=>a.Patient).Include(a=>a.Physician).Where(a => a.PatientId == patientId).AsNoTracking().ToListAsync();
+            return await context.Appointments.AsNoTracking().Where(a => a.PatientId == patientId).ToListAsync();
         }
         public async Task<List<Appointment>> GetAppointmentsByPhysicianIdAsync(int physicianId)
         {
-            return await context.Appointments.Include(a=>a.Physician).Include(a=>a.Patient).Where(a => a.PhysicianId == physicianId).AsNoTracking().ToListAsync();
+            return await context.Appointments.AsNoTracking().Where(a => a.PhysicianId == physicianId).ToListAsync();
         }
 
     }

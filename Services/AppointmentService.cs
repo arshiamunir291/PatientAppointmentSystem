@@ -2,32 +2,52 @@
 using PatientAppointmentSystem.Services.Interfaces;
 using PatientAppointmentSystem.Entities;
 using PatientAppointmentSystem.Models.AppointmentModels;
+
 namespace PatientAppointmentSystem.Services
 {
-    public class AppointmentService(IAppointmentRepository appointmentRepository) : IAppointmentService
+    public class AppointmentService(
+        IAppointmentRepository appointmentRepository,
+        IPatientRepository patientRepository,
+        IPhysicianRepository physicianRepository
+    ) : IAppointmentService
     {
         public async Task<List<AppointmentListDTO>> GetAppointments()
         {
             var appointments = await appointmentRepository.GetAllAppointmentsAsync();
-            return appointments.Select(a => new AppointmentListDTO
+            var result = new List<AppointmentListDTO>();
+
+            foreach (var a in appointments)
             {
-                AppointmentId = a.AppointmentId,
-                PatientName = a.Patient.FirstName + " " + a.Patient.LastName,
-                PhysicianName = a.Physician.FirstName + " " + a.Physician.LastName,
-                AppointmentDate = a.AppointmentDate,
-                AppointmentTime = a.AppointmentTime,
-                Status = a.Status
-            }).ToList();
+                var patient = await patientRepository.GetPatientByIdAsync(a.PatientId);
+                var physician = await physicianRepository.GetPhysicianByIdAsync(a.PhysicianId);
+
+                result.Add(new AppointmentListDTO
+                {
+                    AppointmentId = a.AppointmentId,
+                    PatientName = patient != null ? $"{patient.FirstName} {patient.LastName}" : "Unknown",
+                    PhysicianName = physician != null ? $"{physician.FirstName} {physician.LastName}" : "Unknown",
+                    AppointmentDate = a.AppointmentDate,
+                    AppointmentTime = a.AppointmentTime,
+                    Status = a.Status
+                });
+            }
+
+            return result;
         }
+
         public async Task<AppointmentDetailDTO?> GetAppointmentById(int id)
         {
             var appointment = await appointmentRepository.GetAppointmentByIdAsync(id);
             if (appointment == null) return null;
+
+            var patient = await patientRepository.GetPatientByIdAsync(appointment.PatientId);
+            var physician = await physicianRepository.GetPhysicianByIdAsync(appointment.PhysicianId);
+
             return new AppointmentDetailDTO
             {
                 AppointmentId = appointment.AppointmentId,
-                PatientName = appointment.Patient.FirstName + " " + appointment.Patient.LastName,
-                PhysicianName = appointment.Physician.FirstName + " " + appointment.Physician.LastName,
+                PatientName = patient != null ? $"{patient.FirstName} {patient.LastName}" : "Unknown",
+                PhysicianName = physician != null ? $"{physician.FirstName} {physician.LastName}" : "Unknown",
                 AppointmentDate = appointment.AppointmentDate,
                 AppointmentTime = appointment.AppointmentTime,
                 Status = appointment.Status,
@@ -35,81 +55,107 @@ namespace PatientAppointmentSystem.Services
                 Notes = appointment.Notes ?? string.Empty
             };
         }
-        public async Task<AppointmentListDTO> AddAppointment(AppointmentCreateDTO appointment)
+
+        public async Task<AppointmentListDTO> AddAppointment(AppointmentCreateDTO dto)
         {
             var newAppointment = new Appointment
             {
-                PatientId = appointment.PatientId,
-                PhysicianId = appointment.PhysicianId,
-                AppointmentDate = appointment.AppointmentDate,
-                AppointmentTime = appointment.AppointmentTime,
+                PatientId = dto.PatientId,
+                PhysicianId = dto.PhysicianId,
+                AppointmentDate = dto.AppointmentDate,
+                AppointmentTime = dto.AppointmentTime,
                 Status = "Scheduled",
-                VisitType = appointment.VisitType
+                VisitType = dto.VisitType
             };
-            var createdAppointment = await appointmentRepository.AddAppointmentAsync(newAppointment);
-            // reload with related data
-            var fullAppointment = await appointmentRepository.GetAppointmentByIdAsync(createdAppointment.AppointmentId);
-            if (fullAppointment == null)
-            {
-                throw new InvalidOperationException("Failed to retrieve the created appointment.");
-            }
+
+            var created = await appointmentRepository.AddAppointmentAsync(newAppointment);
+
+            var patient = await patientRepository.GetPatientByIdAsync(created.PatientId);
+            var physician = await physicianRepository.GetPhysicianByIdAsync(created.PhysicianId);
+
             return new AppointmentListDTO
             {
-                AppointmentId = fullAppointment.AppointmentId,
-                PatientName = fullAppointment.Patient.FirstName + " " + fullAppointment.Patient.LastName,
-                PhysicianName = fullAppointment.Physician.FirstName + " " + fullAppointment.Physician.LastName,
-                AppointmentDate = fullAppointment.AppointmentDate,
-                AppointmentTime = fullAppointment.AppointmentTime,
-                Status = fullAppointment.Status
+                AppointmentId = created.AppointmentId,
+                PatientName = patient != null ? $"{patient.FirstName} {patient.LastName}" : "Unknown",
+                PhysicianName = physician != null ? $"{physician.FirstName} {physician.LastName}" : "Unknown",
+                AppointmentDate = created.AppointmentDate,
+                AppointmentTime = created.AppointmentTime,
+                Status = created.Status
             };
         }
-        public async Task<AppointmentDetailDTO?> UpdateAppointment(int id, AppointmentUpdateDTO appointment)
+
+        public async Task<AppointmentDetailDTO?> UpdateAppointment(int id, AppointmentUpdateDTO dto)
         {
-            var appointmentToUpdate = await appointmentRepository.GetAppointmentByIdAsync(id);
-            if (appointmentToUpdate == null) return null;
-            if (appointment.Status is not null)
-            {
-                appointmentToUpdate.Status = appointment.Status;
-            }
-            await appointmentRepository.UpdateAppointmentAsync(appointmentToUpdate);
+            var appointment = await appointmentRepository.GetAppointmentByIdAsync(id);
+            if (appointment == null) return null;
+
+            if (dto.Status != null)
+                appointment.Status = dto.Status;
+
+            await appointmentRepository.UpdateAppointmentAsync(appointment);
+
+            var patient = await patientRepository.GetPatientByIdAsync(appointment.PatientId);
+            var physician = await physicianRepository.GetPhysicianByIdAsync(appointment.PhysicianId);
+
             return new AppointmentDetailDTO
             {
-                AppointmentId = appointmentToUpdate.AppointmentId,
-                PatientName = appointmentToUpdate.Patient.FirstName + " " + appointmentToUpdate.Patient.LastName,
-                PhysicianName = appointmentToUpdate.Physician.FirstName + " " + appointmentToUpdate.Physician.LastName,
-                AppointmentDate = appointmentToUpdate.AppointmentDate,
-                AppointmentTime = appointmentToUpdate.AppointmentTime,
-                Status = appointmentToUpdate.Status,
-                VisitType = appointmentToUpdate.VisitType,
-                Notes = appointmentToUpdate.Notes ?? string.Empty
+                AppointmentId = appointment.AppointmentId,
+                PatientName = patient != null ? $"{patient.FirstName} {patient.LastName}" : "Unknown",
+                PhysicianName = physician != null ? $"{physician.FirstName} {physician.LastName}" : "Unknown",
+                AppointmentDate = appointment.AppointmentDate,
+                AppointmentTime = appointment.AppointmentTime,
+                Status = appointment.Status,
+                VisitType = appointment.VisitType,
+                Notes = appointment.Notes ?? string.Empty
             };
         }
 
         public async Task<List<AppointmentListDTO>> GetAppointmentsByPatientId(int patientId)
         {
-            var patientAppointments= await appointmentRepository.GetAppointmentsByPatientIdAsync(patientId);
-            return patientAppointments.Select(a => new AppointmentListDTO
+            var appointments = await appointmentRepository.GetAppointmentsByPatientIdAsync(patientId);
+            var result = new List<AppointmentListDTO>();
+
+            foreach (var a in appointments)
             {
-                AppointmentId = a.AppointmentId,
-                PatientName = a.Patient.FirstName + " " + a.Patient.LastName,
-                PhysicianName = a.Physician.FirstName + " " + a.Physician.LastName,
-                AppointmentDate = a.AppointmentDate,
-                AppointmentTime = a.AppointmentTime,
-                Status = a.Status
-            }).ToList();
+                var patient = await patientRepository.GetPatientByIdAsync(a.PatientId);
+                var physician = await physicianRepository.GetPhysicianByIdAsync(a.PhysicianId);
+
+                result.Add(new AppointmentListDTO
+                {
+                    AppointmentId = a.AppointmentId,
+                    PatientName = patient != null ? $"{patient.FirstName} {patient.LastName}" : "Unknown",
+                    PhysicianName = physician != null ? $"{physician.FirstName} {physician.LastName}" : "Unknown",
+                    AppointmentDate = a.AppointmentDate,
+                    AppointmentTime = a.AppointmentTime,
+                    Status = a.Status
+                });
+            }
+
+            return result;
         }
+
         public async Task<List<AppointmentListDTO>> GetAppointmentsByPhysicianId(int physicianId)
         {
-            var physicianAppointments= await appointmentRepository.GetAppointmentsByPhysicianIdAsync(physicianId);
-            return physicianAppointments.Select(a => new AppointmentListDTO
+            var appointments = await appointmentRepository.GetAppointmentsByPhysicianIdAsync(physicianId);
+            var result = new List<AppointmentListDTO>();
+
+            foreach (var a in appointments)
             {
-                AppointmentId = a.AppointmentId,
-                PatientName = a.Patient.FirstName + " " + a.Patient.LastName,
-                PhysicianName = a.Physician.FirstName + " " + a.Physician.LastName,
-                AppointmentDate = a.AppointmentDate,
-                AppointmentTime = a.AppointmentTime,
-                Status = a.Status
-            }).ToList();
+                var patient = await patientRepository.GetPatientByIdAsync(a.PatientId);
+                var physician = await physicianRepository.GetPhysicianByIdAsync(a.PhysicianId);
+
+                result.Add(new AppointmentListDTO
+                {
+                    AppointmentId = a.AppointmentId,
+                    PatientName = patient != null ? $"{patient.FirstName} {patient.LastName}" : "Unknown",
+                    PhysicianName = physician != null ? $"{physician.FirstName} {physician.LastName}" : "Unknown",
+                    AppointmentDate = a.AppointmentDate,
+                    AppointmentTime = a.AppointmentTime,
+                    Status = a.Status
+                });
+            }
+
+            return result;
         }
     }
 }
