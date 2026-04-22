@@ -16,47 +16,78 @@
 ## Get Patients with Appointments
 
 **LINQ**
+context.Patients.AsNoTracking()
+                .Where(p => context.Appointments.Any(a => a.PatientId == p.PatientId))
+                .ToListAsync();
 
-_context.Patients.Select(p => new {
-    p.PatientId,
-    p.FullName,
-    p.Appointments
-});
 
 **SQL**
+select p.PatientID,
+p.FirstName+ '' + p.LastName As PatientName,
+ph.FirstName+ ' '+ph.LastName As PhysicianName,
+a.AppointmentDate,a.AppointmentTime,a.Status
+from Patients p
+join Appointments a
+on a.PatientID=p.PatientID
+join Physicians ph
+on ph.PhysicianID=a.PhysicianID
 
-SELECT p.PatientId, p.FirstName+ " " + p.LastName AS FullName, a.*
-FROM Patients p
-LEFT JOIN Appointments a 
-ON p.PatientId = a.PatientId;
-
-## Get Appointments by Doctor
+## Get Appointments by Physicians
 
 **LINQ**
-_context.Appointments
-.Where(a => a.DoctorId == doctorId);
+context.Physicians.AsNoTracking()
+                .Where(d => context.Appointments.Any(a => a.PhysicianId == d.PhysicianId)).AsNoTracking()
+                .ToListAsync();
+        }
 
-SELECT *
-FROM Patients p
-WHERE  EXISTS (
-    SELECT 1 FROM Appointments a
-    WHERE a.PatientId = p.PatientId
-);
+**SQL**
+select ph.PhysicianID,
+ph.FirstName+ ' '+ph.LastName as PhysicianName ,
+p.FirstName+ ' ' + p.LastName As PatientName,
+a.AppointmentDate,a.AppointmentTime,a.Status
+from Physicians ph
+join Appointments a
+on a.PhysicianID=ph.PhysicianID
+join Patients p
+on p.PatientID=a.PatientID
 
 ## Get Patients with No Appointments
 
 **LINQ**
 
-_context.Patients
-.Where(p => !p.Appointments.Any());
+context.Patients.AsNoTracking()
+                .Where(p => !context.Appointments.Any(a => a.PatientId == p.PatientId))
+                .ToListAsync();
 
 **SQL**
-SELECT *
-FROM Patients p
-WHERE NOT EXISTS (
-    SELECT 1 FROM Appointments a
-    WHERE a.PatientId = p.PatientId
-);
+select p.PatientID,
+p.FirstName+ ' '+p.LastName as PatientName 
+from Patients p
+where not exists(
+select 1 from Appointments a
+where a.PatientID=p.PatientID
+)
+
+
+## Get Physicians with No Appointments
+**LINQ**
+
+context.Physicians.AsNoTracking()
+                .Where(d => !context.Appointments.Any(a => a.PhysicianId == d.PhysicianId)).AsNoTracking()
+                .ToListAsync();
+
+**SQL**
+
+select ph.PhysicianID,
+ph.FirstName+ ' '+ph.LastName as PhysicianName ,
+DepartmentName
+from Physicians ph
+join Departments d
+on d.DepartmentID=ph.DepartmentID
+where not exists(
+select 1 from Appointments a
+where a.PhysicianID=ph.PhysicianID
+)
 
 
 # Tracking Decisions
