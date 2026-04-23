@@ -2,13 +2,14 @@
 using PatientAppointmentSystem.Models.PhysicianModels;
 using PatientAppointmentSystem.Repositories.Interfaces;
 using PatientAppointmentSystem.Services.Interfaces;
-
+using PatientAppointmentSystem.Models.AppointmentModels;
 namespace PatientAppointmentSystem.Services
 {
     public class PhysicianService(
         IPhysicianRepository physicianRepository,
         IAppointmentRepository appointmentRepository,
-        IDepartmentRepository departmentRepository
+        IDepartmentRepository departmentRepository,
+        IPatientRepository patientRepository
     ) : IPhysicianService
     {
         public async Task<List<PhysicianListDTO>> GetPhysicians()
@@ -29,8 +30,6 @@ namespace PatientAppointmentSystem.Services
         {
             var physician = await physicianRepository.GetPhysicianByIdAsync(id);
             if (physician == null) return null;
-
-            // departmentRepository.GetDepartmentNameById returns a string, not an object with DepartmentName property
             var departmentName = await departmentRepository.GetDepartmentNameById(physician.DepartmentId);
 
             return new PhysicianDetailDTO
@@ -57,8 +56,6 @@ namespace PatientAppointmentSystem.Services
             };
 
             var created = await physicianRepository.AddPhysicianAsync(physician);
-
-            // departmentRepository.GetDepartmentNameById returns a string, not an object with DepartmentName property
             var departmentName = await departmentRepository.GetDepartmentNameById(created.DepartmentId);
 
             return new PhysicianListDTO
@@ -82,8 +79,6 @@ namespace PatientAppointmentSystem.Services
             existing.IsAvailable = true;
 
             await physicianRepository.UpdatePhysicianAsync(existing);
-
-            // departmentRepository.GetDepartmentNameById returns a string, not an object with DepartmentName property
             var departmentName = await departmentRepository.GetDepartmentNameById(existing.DepartmentId);
 
             return new PhysicianDetailDTO
@@ -124,7 +119,7 @@ namespace PatientAppointmentSystem.Services
         {
             var physicians = await physicianRepository.GetPhysicianWithAppointmentAsync();
             var appointments = await appointmentRepository.GetAllAppointmentsAsync();
-
+            var patients=await patientRepository.GetAllPatientsAsync(); 
             return physicians.Select(p => new PhysicianWithAppoinmentDTO
             {
                 PhysicianId = p.PhysicianId,
@@ -132,13 +127,17 @@ namespace PatientAppointmentSystem.Services
 
                 Appointments = appointments
                     .Where(a => a.PhysicianId == p.PhysicianId)
-                    .Select(a => new PatientAppointmentSystem.Models.AppointmentModels.AppointmentDTO
+                    .Select(a => 
                     {
-                        AppointmentId = a.AppointmentId,
-                        PhysicianName = $"{p.FirstName} {p.LastName}",
-                        AppointmentDate = a.AppointmentDate,
-                        AppointmentTime = a.AppointmentTime,
-                        Status = a.Status
+                        var patient = patients.FirstOrDefault(p => p.PatientId == a.PatientId);
+                        return new AppointmentPhysicianDTO
+                        {
+                            AppointmentId = a.AppointmentId,
+                            PatientName = patient != null ? $"{patient.FirstName} {patient.LastName}" : "Unknown",
+                            AppointmentDate = a.AppointmentDate,
+                            AppointmentTime = a.AppointmentTime,
+                            Status = a.Status
+                        };
                     }).ToList()
             }).ToList();
         }

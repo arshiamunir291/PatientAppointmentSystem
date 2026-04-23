@@ -6,5 +6,5 @@ public class PhysicianWithAppoinmentDTO
 {
     public int PhysicianId { get; set; }  
     public string FullName { get; set; }=null!;
-    public List<AppointmentDTO> Appointments { get; set; } = new();
+    public List<AppointmentPhysicianDTO> Appointments { get; set; } = new();
 }
