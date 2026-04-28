@@ -9,5 +9,6 @@ namespace PatientAppointmentSystem.Repositories.Interfaces
         Task<Physician?> UpdatePhysicianAsync(Physician physician);
         Task DeletePhysicianAsync(Physician physician);
         Task<List<Physician>> GetPhysicianWithNoAppointmentAsync();
+        Task<List<Physician>> GetPhysicianWithAppointmentAsync();
     }
 }

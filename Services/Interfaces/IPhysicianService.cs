@@ -9,5 +9,6 @@ namespace PatientAppointmentSystem.Services.Interfaces
         Task<PhysicianDetailDTO?> UpdatePhysician(int id, PhysicianUpdateDTO physician);
         Task<bool> DeletePhysician(int id);
         Task<List<PhysicianListDTO>> GetPhysicianWithNoAppointments();
+        Task<List<PhysicianWithAppoinmentDTO>> GetPhysicianWithAppointments();
     }
 }

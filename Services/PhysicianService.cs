@@ -2,39 +2,50 @@
 using PatientAppointmentSystem.Models.PhysicianModels;
 using PatientAppointmentSystem.Repositories.Interfaces;
 using PatientAppointmentSystem.Services.Interfaces;
+using PatientAppointmentSystem.Models.AppointmentModels;
 namespace PatientAppointmentSystem.Services
 {
-    public class PhysicianService(IPhysicianRepository physicianRepository) : IPhysicianService
+    public class PhysicianService(
+        IPhysicianRepository physicianRepository,
+        IAppointmentRepository appointmentRepository,
+        IDepartmentRepository departmentRepository,
+        IPatientRepository patientRepository
+    ) : IPhysicianService
     {
-
         public async Task<List<PhysicianListDTO>> GetPhysicians()
         {
+            var physicians = await physicianRepository.GetAllPhysicainsAsync();
+            var departments = await departmentRepository.GetAllDepartmentsAsync();
+
+            return physicians.Select(p => new PhysicianListDTO
             {
-                var physicians = await physicianRepository.GetAllPhysicainsAsync();
-                return physicians.Select(p => new PhysicianListDTO
-                {
-                    PhysicianId = p.PhysicianId,
-                    FullName = $"{p.FirstName} {p.LastName}",
-                    DepartmentName = p.Department != null ? p.Department.DepartmentName : "Unknown"
-                }).ToList();
-            }
+                PhysicianId = p.PhysicianId,
+                FullName = $"{p.FirstName} {p.LastName}",
+                DepartmentName = departments
+                    .FirstOrDefault(d => d.DepartmentId == p.DepartmentId)?.DepartmentName ?? "Unknown"
+            }).ToList();
         }
+
         public async Task<PhysicianDetailDTO?> GetPhysicianById(int id)
         {
             var physician = await physicianRepository.GetPhysicianByIdAsync(id);
-            return physician == null ? null : new PhysicianDetailDTO
+            if (physician == null) return null;
+            var departmentName = await departmentRepository.GetDepartmentNameById(physician.DepartmentId);
+
+            return new PhysicianDetailDTO
             {
                 PhysicianId = physician.PhysicianId,
                 FullName = $"{physician.FirstName} {physician.LastName}",
                 Specialization = physician.Specialization,
                 ConsultationFee = physician.ConsultationFee,
                 IsAvailable = physician.IsAvailable,
-                DepartmentName = physician.Department.DepartmentName
+                DepartmentName = departmentName ?? "Unknown"
             };
         }
+
         public async Task<PhysicianListDTO> AddPhysician(PhysicianCreateDTO dto)
         {
-            var physician= new Physician
+            var physician = new Physician
             {
                 FirstName = dto.FirstName,
                 LastName = dto.LastName,
@@ -43,51 +54,91 @@ namespace PatientAppointmentSystem.Services
                 DepartmentId = dto.DepartmentId,
                 IsAvailable = true
             };
-            var createdPhysician = await physicianRepository.AddPhysicianAsync(physician);
+
+            var created = await physicianRepository.AddPhysicianAsync(physician);
+            var departmentName = await departmentRepository.GetDepartmentNameById(created.DepartmentId);
+
             return new PhysicianListDTO
             {
-                PhysicianId = createdPhysician.PhysicianId,
-                FullName = $"{createdPhysician.FirstName} {createdPhysician.LastName}",
-                DepartmentName = createdPhysician.Department.DepartmentName
+                PhysicianId = created.PhysicianId,
+                FullName = $"{created.FirstName} {created.LastName}",
+                DepartmentName = departmentName ?? "Unknown"
             };
         }
-        public async Task<PhysicianDetailDTO?> UpdatePhysician(int id, PhysicianUpdateDTO physician)
-        {
-            var existingPhysician = await physicianRepository.GetPhysicianByIdAsync(id); 
 
-            if (existingPhysician == null) return null;
-            existingPhysician.FirstName = physician.FirstName;
-            existingPhysician.LastName = physician.LastName;
-            existingPhysician.DepartmentId = physician.DepartmentId;
-            existingPhysician.Specialization = physician.Specialization;
-            existingPhysician.ConsultationFee = physician.ConsultationFee;
-            existingPhysician.IsAvailable = true;
-            await physicianRepository.UpdatePhysicianAsync(existingPhysician);
+        public async Task<PhysicianDetailDTO?> UpdatePhysician(int id, PhysicianUpdateDTO dto)
+        {
+            var existing = await physicianRepository.GetPhysicianByIdAsync(id);
+            if (existing == null) return null;
+
+            existing.FirstName = dto.FirstName;
+            existing.LastName = dto.LastName;
+            existing.DepartmentId = dto.DepartmentId;
+            existing.Specialization = dto.Specialization;
+            existing.ConsultationFee = dto.ConsultationFee;
+            existing.IsAvailable = true;
+
+            await physicianRepository.UpdatePhysicianAsync(existing);
+            var departmentName = await departmentRepository.GetDepartmentNameById(existing.DepartmentId);
+
             return new PhysicianDetailDTO
             {
-                PhysicianId = existingPhysician.PhysicianId,
-                FullName = $"{existingPhysician.FirstName} {existingPhysician.LastName}",
-                Specialization = existingPhysician.Specialization,
-                ConsultationFee = existingPhysician.ConsultationFee,
-                IsAvailable = existingPhysician.IsAvailable,
-                DepartmentName = existingPhysician.Department.DepartmentName
+                PhysicianId = existing.PhysicianId,
+                FullName = $"{existing.FirstName} {existing.LastName}",
+                Specialization = existing.Specialization,
+                ConsultationFee = existing.ConsultationFee,
+                IsAvailable = existing.IsAvailable,
+                DepartmentName = departmentName ?? "Unknown"
             };
         }
+
         public async Task<bool> DeletePhysician(int id)
         {
-            var existingPhysician = await physicianRepository.GetPhysicianByIdAsync(id);
-            if (existingPhysician == null) return false;
-            await physicianRepository.DeletePhysicianAsync(existingPhysician);
+            var existing = await physicianRepository.GetPhysicianByIdAsync(id);
+            if (existing == null) return false;
+
+            await physicianRepository.DeletePhysicianAsync(existing);
             return true;
         }
+
         public async Task<List<PhysicianListDTO>> GetPhysicianWithNoAppointments()
         {
             var physicians = await physicianRepository.GetPhysicianWithNoAppointmentAsync();
-             return physicians.Select(p => new PhysicianListDTO
+            var departments = await departmentRepository.GetAllDepartmentsAsync();
+
+            return physicians.Select(p => new PhysicianListDTO
             {
                 PhysicianId = p.PhysicianId,
                 FullName = $"{p.FirstName} {p.LastName}",
-                DepartmentName = p.Department.DepartmentName
+                DepartmentName = departments
+                    .FirstOrDefault(d => d.DepartmentId == p.DepartmentId)?.DepartmentName ?? "Unknown"
+            }).ToList();
+        }
+
+        public async Task<List<PhysicianWithAppoinmentDTO>> GetPhysicianWithAppointments()
+        {
+            var physicians = await physicianRepository.GetPhysicianWithAppointmentAsync();
+            var appointments = await appointmentRepository.GetAllAppointmentsAsync();
+            var patients=await patientRepository.GetAllPatientsAsync(); 
+            return physicians.Select(p => new PhysicianWithAppoinmentDTO
+            {
+                PhysicianId = p.PhysicianId,
+                FullName = $"{p.FirstName} {p.LastName}",
+
+                Appointments = appointments
+                    .Where(a => a.PhysicianId == p.PhysicianId)
+                    .Select(a => 
+                    {
+                        var patient = patients.FirstOrDefault(p => p.PatientId == a.PatientId);
+                        return new AppointmentPhysicianDTO
+                        {
+                            AppointmentId = a.AppointmentId,
+                            PatientName = patient != null ? $"{patient.FirstName} {patient.LastName}" : "Unknown",
+                            AppointmentDate = a.AppointmentDate,
+                            AppointmentTime = a.AppointmentTime,
+                            Status = a.Status
+                        };
+                    }).ToList()
             }).ToList();
         }
     }

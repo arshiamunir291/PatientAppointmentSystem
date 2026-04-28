@@ -13,9 +13,9 @@ namespace PatientAppointmentSystem.Entity_Configuration
             builder.Property(b => b.VisitType).HasMaxLength(20);
             builder.Property(b => b.Notes).HasMaxLength(500);
             builder.HasOne(a => a.Patient).WithMany(p => p.Appointments)
-                .HasForeignKey(a => a.PatientId);
+                .HasForeignKey(a => a.PatientId).OnDelete(DeleteBehavior.Restrict);
             builder.HasOne(a => a.Physician).WithMany(p => p.Appointments)
-            .HasForeignKey(d => d.PhysicianId);
+            .HasForeignKey(d => d.PhysicianId).OnDelete(DeleteBehavior.Restrict);
 
 
 
